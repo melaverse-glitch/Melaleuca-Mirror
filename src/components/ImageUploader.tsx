@@ -24,7 +24,7 @@ export default function ImageUploader({ onImageSelected }: ImageUploaderProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith("image/")) {
@@ -55,9 +55,9 @@ export default function ImageUploader({ onImageSelected }: ImageUploaderProps) {
 
   return (
     <div
-      className={`relative w-full h-[60vh] border-4 border-dashed rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer group bg-opacity-10 
-        ${isDragging 
-          ? "border-brand-accent bg-brand-accent/10 scale-[1.02]" 
+      className={`relative w-full max-w-md aspect-[3/4] border-4 border-dashed rounded-3xl flex flex-col items-center justify-center transition-all cursor-pointer group bg-opacity-10 
+        ${isDragging
+          ? "border-brand-accent bg-brand-accent/10 scale-[1.02]"
           : "border-muted hover:border-brand-primary hover:bg-white/5"
         }`}
       onDragOver={handleDragOver}
@@ -72,24 +72,24 @@ export default function ImageUploader({ onImageSelected }: ImageUploaderProps) {
         accept="image/*"
         className="hidden"
       />
-      
+
       <div className="flex flex-col items-center gap-6 p-8 text-center animate-in fade-in zoom-in duration-500">
         <div className={`p-8 rounded-full bg-white/10 mb-4 transition-transform group-hover:scale-110 ${isDragging ? "animate-bounce" : ""}`}>
-          <Upload className="w-20 h-20 text-brand-primary" />
+          <Upload className="w-16 h-16 text-brand-primary" />
         </div>
-        
+
         <div className="space-y-2">
-          <h2 className="text-4xl font-bold text-white tracking-tight">
-            Drop your selfie here
+          <h2 className="text-3xl font-bold text-white tracking-tight">
+            Drop Selfie
           </h2>
-          <p className="text-xl text-muted-foreground">
-            or tap to browse
+          <p className="text-lg text-muted-foreground">
+            Portrait Mode
           </p>
         </div>
 
-        <div className="mt-8 flex items-center gap-2 px-6 py-3 rounded-full bg-black/20 text-muted-foreground text-sm font-medium border border-white/5">
+        <div className="mt-8 flex items-center gap-2 px-6 py-3 rounded-full bg-black/20 text-muted-foreground text-xs font-medium border border-white/5">
           <Clipboard className="w-4 h-4" />
-          <span>You can also press Ctrl+V to paste</span>
+          <span>Ctrl+V to paste</span>
         </div>
       </div>
     </div>
