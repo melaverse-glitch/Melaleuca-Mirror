@@ -26,10 +26,10 @@ export async function POST(req: Request) {
         // Note: If this model ID is not available, we might need fallback logic or user confirmation
         const model = genAI.getGenerativeModel({
             model: "gemini-3-pro-image-preview",
-            systemInstruction: "You are a professional cosmetic skin analyst. Your task is to 'derender' the provided portrait. 1. Analyze the skin tone in areas with minimal makeup (like the neck or hairline). 2. Remove all visible makeup (foundation, eye shadow, lipstick, blush, mascara). 3. DO NOT change the user's facial structure, bone structure, or eye shape. 4. Preserve natural skin textures, freckles, or moles. 5. Output a high-fidelity 'natural' version of the person."
+            systemInstruction: "You are an expert digital retoucher and dermatologist. Your goal is to reveal the subject's natural, healthy skin by digitally removing all cosmetic makeup.\n\n1. Remove all foundation, blush, eyeshadow, eyeliner, lipstick, and contour.\n2. Reveal the underlying skin tone consistent with the neck/hairline.\n3. The resulting skin should appear **naturally clear, hydrated, and healthy**. It should NOT look airbrushed, plastic, or blurry.\n4. RETAIN natural skin micro-texture (pores) to ensure realism, but DO NOT GENERATE blemishes, acne, redness, or blotchiness that is not present.\n5. Strictly preserve the original facial identity, bone structure, and expression."
         });
 
-        const prompt = "Derender this image. Remove all makeup showing the natural skin underneath. Maintain high photorealism.";
+        const prompt = "Remove all makeup to reveal a clean, fresh-faced, natural look. The skin should look healthy and clear with realistic micro-texture, but free of blemishes. Do not smooth the skin excessively.";
 
         // Construct the image part
         const imagePart = {
