@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import { db, storage } from "@/lib/firebaseAdmin";
 
 export async function POST(req: Request) {
     try {
@@ -70,6 +71,57 @@ export async function POST(req: Request) {
         const imageOutput = parts?.find(p => p.inlineData)?.inlineData;
 
         if (imageOutput) {
+            // Store both images in Cloud Storage and save URLs to Firestore
+            try {
+                const timestamp = Date.now();
+                const bucket = storage.bucket('melaleuca-mirror.firebasestorage.app');
+
+                // Helper function to upload base64 image to Cloud Storage
+                const uploadImage = async (base64Data: string, fileName: string, imageMimeType: string) => {
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    const file = bucket.file(`generations/${timestamp}/${fileName}`);
+
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: imageMimeType,
+                        },
+                        public: true,
+                    });
+
+                    return `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+                };
+
+                // Upload both images
+                const originalImageUrl = await uploadImage(
+                    image,
+                    'original.jpg',
+                    mimeType || "image/jpeg"
+                );
+
+                const processedImageUrl = await uploadImage(
+                    imageOutput.data,
+                    'processed.jpg',
+                    imageOutput.mimeType
+                );
+
+                // Store metadata and URLs in Firestore
+                const generationDoc = {
+                    timestamp,
+                    originalImageUrl,
+                    originalMimeType: mimeType || "image/jpeg",
+                    processedImageUrl,
+                    processedMimeType: imageOutput.mimeType,
+                    model: "gemini-3-pro-image-preview",
+                    prompt: prompt,
+                };
+
+                await db.collection('generations').add(generationDoc);
+                console.log('Successfully stored generation in Cloud Storage and Firestore');
+            } catch (storageError) {
+                console.error('Error storing to Firebase:', storageError);
+                // Continue even if storage fails - don't block the user
+            }
+
             return NextResponse.json({
                 image: imageOutput.data,
                 mimeType: imageOutput.mimeType
