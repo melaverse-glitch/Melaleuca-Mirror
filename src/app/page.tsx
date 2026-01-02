@@ -39,6 +39,57 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  // Helper function to compress image before sending to API
+  const compressImage = async (file: File, maxWidth: number = 1024, quality: number = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Resize if image is too large
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Convert to base64 with compression
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedReader = new FileReader();
+                compressedReader.readAsDataURL(blob);
+                compressedReader.onload = () => {
+                  const result = compressedReader.result as string;
+                  const base64 = result.split(',')[1];
+                  resolve(base64);
+                };
+                compressedReader.onerror = reject;
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   const processImage = async (file: File) => {
     setIsProcessing(true);
     setProcessedImage(null);
@@ -48,18 +99,8 @@ export default function Home() {
     setSessionId(null);
 
     try {
-      // 1. Convert file to base64 (without prefix) for API
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Result is "data:image/jpeg;base64,....." - strip the prefix
-          const cleanBase64 = result.split(",")[1];
-          resolve(cleanBase64);
-        };
-        reader.onerror = error => reject(error);
-      });
+      // 1. Compress and convert file to base64 for API (prevents 413 errors)
+      const base64 = await compressImage(file, 1024, 0.85);
 
       // 2. Call API
       const response = await fetch("/api/derender", {
