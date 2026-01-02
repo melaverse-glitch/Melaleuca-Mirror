@@ -5,10 +5,24 @@ import ImageUploader from "@/components/ImageUploader";
 import ComparisonView from "@/components/ComparisonView";
 import { Sparkles, Camera } from "lucide-react";
 
+interface Foundation {
+  sku: string;
+  name: string;
+  hex: string;
+  undertone: "warm" | "neutral" | "cool";
+  swatchImage: string;
+}
+
 export default function Home() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [foundationImage, setFoundationImage] = useState<string | null>(null);
+  const [selectedFoundation, setSelectedFoundation] = useState<Foundation | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isApplyingFoundation, setIsApplyingFoundation] = useState(false);
+
+  // Store the base64 of the derendered image for foundation application
+  const [derenderedBase64, setDerenderedBase64] = useState<string | null>(null);
 
   const handleImageSelected = async (file: File) => {
     // Convert to base64 for display
@@ -25,6 +39,9 @@ export default function Home() {
   const processImage = async (file: File) => {
     setIsProcessing(true);
     setProcessedImage(null);
+    setFoundationImage(null);
+    setSelectedFoundation(null);
+    setDerenderedBase64(null);
 
     try {
       // 1. Convert file to base64 (without prefix) for API
@@ -56,6 +73,9 @@ export default function Home() {
       const data = await response.json();
 
       if (data.image) {
+        // Store the base64 for later foundation application
+        setDerenderedBase64(data.image);
+
         // Assume API returns base64 or URL
         // If base64 and not prefixed, add prefix
         let resultImg = data.image;
@@ -72,10 +92,65 @@ export default function Home() {
     }
   };
 
+  const handleFoundationSelect = async (foundation: Foundation) => {
+    if (!derenderedBase64) {
+      console.error("No derendered image available");
+      return;
+    }
+
+    setSelectedFoundation(foundation);
+    setIsApplyingFoundation(true);
+
+    try {
+      const response = await fetch("/api/apply-foundation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: derenderedBase64,
+          mimeType: "image/jpeg",
+          foundation: {
+            sku: foundation.sku,
+            name: foundation.name,
+            hex: foundation.hex,
+            undertone: foundation.undertone,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to apply foundation");
+      }
+
+      const data = await response.json();
+
+      if (data.image) {
+        let resultImg = data.image;
+        if (!resultImg.startsWith("http") && !resultImg.startsWith("data:")) {
+          resultImg = `data:image/png;base64,${resultImg}`;
+        }
+        setFoundationImage(resultImg);
+      } else if (data.error) {
+        console.error("Foundation application error:", data.error);
+        alert("Could not apply foundation. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error applying foundation:", error);
+      alert("Something went wrong applying the foundation. Please try again.");
+    } finally {
+      setIsApplyingFoundation(false);
+    }
+  };
+
   const handleReset = () => {
     setOriginalImage(null);
     setProcessedImage(null);
+    setFoundationImage(null);
+    setSelectedFoundation(null);
+    setDerenderedBase64(null);
     setIsProcessing(false);
+    setIsApplyingFoundation(false);
   };
 
   return (
@@ -105,7 +180,11 @@ export default function Home() {
           <ComparisonView
             originalImage={originalImage}
             processedImage={processedImage}
+            foundationImage={foundationImage}
+            selectedFoundation={selectedFoundation}
+            isApplyingFoundation={isApplyingFoundation}
             onReset={handleReset}
+            onFoundationSelect={handleFoundationSelect}
           />
         )}
       </main>

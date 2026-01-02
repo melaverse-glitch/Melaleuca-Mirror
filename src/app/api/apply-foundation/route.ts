@@ -1,0 +1,176 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
+import { db, storage } from "@/lib/firebaseAdmin";
+import * as fs from "fs";
+import * as path from "path";
+
+export async function POST(req: Request) {
+    try {
+        const { image, mimeType, foundation } = await req.json();
+
+        if (!image) {
+            return NextResponse.json(
+                { error: "Image data is required" },
+                { status: 400 }
+            );
+        }
+
+        if (!foundation || !foundation.sku) {
+            return NextResponse.json(
+                { error: "Foundation selection is required" },
+                { status: 400 }
+            );
+        }
+
+        const apiKey = process.env.GOOGLE_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json(
+                { error: "GOOGLE_API_KEY is not set" },
+                { status: 500 }
+            );
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+
+        // Load the swatch image for the selected foundation
+        let swatchBase64: string | null = null;
+        let swatchMimeType = "image/png";
+
+        try {
+            const swatchPath = path.join(process.cwd(), "public", "swatches", `${foundation.sku}.png`);
+            const swatchBuffer = fs.readFileSync(swatchPath);
+            swatchBase64 = swatchBuffer.toString("base64");
+        } catch (err) {
+            console.error("Could not load swatch image:", err);
+            // Continue without swatch - will rely on hex color
+        }
+
+        const model = genAI.getGenerativeModel({
+            model: "gemini-3-pro-image-preview",
+            systemInstruction: `You are an expert cosmetic artist and digital makeup specialist. Your task is to apply foundation makeup to the provided portrait image.
+
+IMPORTANT GUIDELINES:
+1. Apply the foundation ONLY to the face and neck areas - do not alter hair, eyes, lips, eyebrows, or background.
+2. The foundation should look natural and blended, not like a mask or filter.
+3. Preserve the person's facial features, expression, and identity completely.
+4. Match the foundation application to how real foundation looks - slightly evening out skin tone while maintaining natural skin texture.
+5. The coverage should be medium - enough to see the color but not completely opaque.
+6. Blend the foundation naturally at the jawline and hairline edges.
+7. Maintain realistic skin texture and pores - do not make the skin look plastic or airbrushed.`
+        });
+
+        // Build the prompt with foundation details
+        const prompt = `Apply this foundation to the face in the portrait:
+- Foundation shade: ${foundation.name}
+- Color: ${foundation.hex}
+- Undertone: ${foundation.undertone}
+
+Apply a natural, medium-coverage foundation look. The result should look like the person is wearing this foundation shade - evening out skin tone while keeping natural texture. Blend naturally at edges.`;
+
+        // Construct the content parts
+        const contentParts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
+            { text: prompt },
+            {
+                inlineData: {
+                    data: image,
+                    mimeType: mimeType || "image/jpeg",
+                },
+            },
+        ];
+
+        // If we have the swatch image, include it for better color reference
+        if (swatchBase64) {
+            contentParts.push({
+                inlineData: {
+                    data: swatchBase64,
+                    mimeType: swatchMimeType,
+                },
+            });
+            contentParts[0] = {
+                text: prompt + "\n\nThe second image shows the exact foundation color/texture to apply.",
+            };
+        }
+
+        const result = await model.generateContent(contentParts);
+        const response = await result.response;
+
+        const parts = response.candidates?.[0]?.content?.parts;
+        const imageOutput = parts?.find(p => p.inlineData)?.inlineData;
+
+        if (imageOutput) {
+            // Store the foundation try-on result in Firebase
+            try {
+                const timestamp = Date.now();
+                const bucket = storage.bucket('melaleuca-mirror.firebasestorage.app');
+
+                const uploadImage = async (base64Data: string, fileName: string, imageMimeType: string) => {
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    const file = bucket.file(`foundation-tryons/${timestamp}/${fileName}`);
+
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: imageMimeType,
+                        },
+                        public: true,
+                    });
+
+                    return `https://storage.googleapis.com/${bucket.name}/${file.name}`;
+                };
+
+                const sourceImageUrl = await uploadImage(
+                    image,
+                    'source.jpg',
+                    mimeType || "image/jpeg"
+                );
+
+                const resultImageUrl = await uploadImage(
+                    imageOutput.data,
+                    'with-foundation.jpg',
+                    imageOutput.mimeType
+                );
+
+                // Store metadata in Firestore
+                const tryonDoc = {
+                    timestamp,
+                    sourceImageUrl,
+                    resultImageUrl,
+                    foundationSku: foundation.sku,
+                    foundationName: foundation.name,
+                    foundationHex: foundation.hex,
+                    foundationUndertone: foundation.undertone,
+                    model: "gemini-3-pro-image-preview",
+                };
+
+                await db.collection('foundation-tryons').add(tryonDoc);
+                console.log('Successfully stored foundation try-on in Firebase');
+            } catch (storageError) {
+                console.error('Error storing to Firebase:', storageError);
+                // Continue even if storage fails
+            }
+
+            return NextResponse.json({
+                image: imageOutput.data,
+                mimeType: imageOutput.mimeType,
+                foundation: foundation.sku,
+            });
+        }
+
+        // Fallback if no image was generated
+        const textOutput = response.text();
+        if (textOutput) {
+            console.log("Model returned text instead of image:", textOutput);
+        }
+
+        return NextResponse.json({
+            error: "No image generated by model",
+            rawText: textOutput
+        });
+
+    } catch (error) {
+        console.error("API Error:", error);
+        return NextResponse.json(
+            { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error) },
+            { status: 500 }
+        );
+    }
+}
