@@ -106,7 +106,10 @@ export async function POST(req: Request) {
                     imageOutput.mimeType
                 );
 
-                // Create a new session document to track the entire user journey
+                // Create a new session document using timestamp as ID for consistency
+                // This ensures Cloud Storage folder and Firestore doc ID match
+                sessionId = timestamp.toString();
+
                 const sessionDoc = {
                     createdAt: timestamp,
                     originalImageUrl,
@@ -120,8 +123,7 @@ export async function POST(req: Request) {
                     completedAt: null,
                 };
 
-                const sessionRef = await db.collection('sessions').add(sessionDoc);
-                sessionId = sessionRef.id;
+                await db.collection('sessions').doc(sessionId).set(sessionDoc);
                 console.log('Successfully created session in Firestore:', sessionId);
             } catch (storageError) {
                 console.error('Error storing to Firebase:', storageError);
