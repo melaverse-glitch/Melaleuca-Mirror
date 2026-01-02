@@ -100,7 +100,8 @@ export default function Home() {
 
     try {
       // 1. Compress and convert file to base64 for API (prevents 413 errors)
-      const base64 = await compressImage(file, 1024, 0.85);
+      // Aggressive compression to stay under Vercel's 4.5MB limit
+      const base64 = await compressImage(file, 800, 0.75);
 
       // 2. Call API
       const response = await fetch("/api/derender", {
