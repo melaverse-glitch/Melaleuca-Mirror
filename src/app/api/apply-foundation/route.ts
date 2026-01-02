@@ -1,12 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { db, storage } from "@/lib/firebaseAdmin";
+import { db, storage, admin } from "@/lib/firebaseAdmin";
 import * as fs from "fs";
 import * as path from "path";
 
 export async function POST(req: Request) {
     try {
-        const { image, mimeType, foundation } = await req.json();
+        const { image, mimeType, foundation, sessionId } = await req.json();
 
         if (!image) {
             return NextResponse.json(
@@ -18,6 +18,13 @@ export async function POST(req: Request) {
         if (!foundation || !foundation.sku) {
             return NextResponse.json(
                 { error: "Foundation selection is required" },
+                { status: 400 }
+            );
+        }
+
+        if (!sessionId) {
+            return NextResponse.json(
+                { error: "Session ID is required" },
                 { status: 400 }
             );
         }
@@ -98,53 +105,44 @@ Apply a natural, medium-coverage foundation look. The result should look like th
         const imageOutput = parts?.find(p => p.inlineData)?.inlineData;
 
         if (imageOutput) {
-            // Store the foundation try-on result in Firebase
+            // Update the session with this foundation try-on
             try {
                 const timestamp = Date.now();
                 const bucket = storage.bucket('melaleuca-mirror.firebasestorage.app');
 
-                const uploadImage = async (base64Data: string, fileName: string, imageMimeType: string) => {
-                    const buffer = Buffer.from(base64Data, 'base64');
-                    const file = bucket.file(`foundation-tryons/${timestamp}/${fileName}`);
+                // Upload the foundation result image
+                const buffer = Buffer.from(imageOutput.data, 'base64');
+                const file = bucket.file(`sessions/${sessionId}/foundation-${foundation.sku}-${timestamp}.jpg`);
 
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: imageMimeType,
-                        },
-                        public: true,
-                    });
+                await file.save(buffer, {
+                    metadata: {
+                        contentType: imageOutput.mimeType,
+                    },
+                    public: true,
+                });
 
-                    return `https://storage.googleapis.com/${bucket.name}/${file.name}`;
-                };
+                const resultImageUrl = `https://storage.googleapis.com/${bucket.name}/${file.name}`;
 
-                const sourceImageUrl = await uploadImage(
-                    image,
-                    'source.jpg',
-                    mimeType || "image/jpeg"
-                );
-
-                const resultImageUrl = await uploadImage(
-                    imageOutput.data,
-                    'with-foundation.jpg',
-                    imageOutput.mimeType
-                );
-
-                // Store metadata in Firestore
-                const tryonDoc = {
-                    timestamp,
-                    sourceImageUrl,
+                // Create the try-on entry
+                const tryonEntry = {
+                    appliedAt: timestamp,
+                    sku: foundation.sku,
+                    name: foundation.name,
+                    hex: foundation.hex,
+                    undertone: foundation.undertone,
                     resultImageUrl,
-                    foundationSku: foundation.sku,
-                    foundationName: foundation.name,
-                    foundationHex: foundation.hex,
-                    foundationUndertone: foundation.undertone,
-                    model: "gemini-3-pro-image-preview",
+                    resultMimeType: imageOutput.mimeType,
                 };
 
-                await db.collection('foundation-tryons').add(tryonDoc);
-                console.log('Successfully stored foundation try-on in Firebase');
+                // Update the session document by appending to foundationTryons array
+                const sessionRef = db.collection('sessions').doc(sessionId);
+                await sessionRef.update({
+                    foundationTryons: admin.firestore.FieldValue.arrayUnion(tryonEntry)
+                });
+
+                console.log(`Successfully added foundation ${foundation.sku} to session ${sessionId}`);
             } catch (storageError) {
-                console.error('Error storing to Firebase:', storageError);
+                console.error('Error updating session in Firebase:', storageError);
                 // Continue even if storage fails
             }
 

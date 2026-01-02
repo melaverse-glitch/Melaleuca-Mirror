@@ -24,6 +24,9 @@ export default function Home() {
   // Store the base64 of the derendered image for foundation application
   const [derenderedBase64, setDerenderedBase64] = useState<string | null>(null);
 
+  // Store the session ID to track the entire user journey
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   const handleImageSelected = async (file: File) => {
     // Convert to base64 for display
     const reader = new FileReader();
@@ -42,6 +45,7 @@ export default function Home() {
     setFoundationImage(null);
     setSelectedFoundation(null);
     setDerenderedBase64(null);
+    setSessionId(null);
 
     try {
       // 1. Convert file to base64 (without prefix) for API
@@ -76,6 +80,12 @@ export default function Home() {
         // Store the base64 for later foundation application
         setDerenderedBase64(data.image);
 
+        // Store the session ID for tracking foundation try-ons
+        if (data.sessionId) {
+          setSessionId(data.sessionId);
+          console.log("Session created:", data.sessionId);
+        }
+
         // Assume API returns base64 or URL
         // If base64 and not prefixed, add prefix
         let resultImg = data.image;
@@ -98,6 +108,11 @@ export default function Home() {
       return;
     }
 
+    if (!sessionId) {
+      console.error("No session ID available");
+      return;
+    }
+
     setSelectedFoundation(foundation);
     setIsApplyingFoundation(true);
 
@@ -116,6 +131,7 @@ export default function Home() {
             hex: foundation.hex,
             undertone: foundation.undertone,
           },
+          sessionId: sessionId,
         }),
       });
 
@@ -149,6 +165,7 @@ export default function Home() {
     setFoundationImage(null);
     setSelectedFoundation(null);
     setDerenderedBase64(null);
+    setSessionId(null);
     setIsProcessing(false);
     setIsApplyingFoundation(false);
   };

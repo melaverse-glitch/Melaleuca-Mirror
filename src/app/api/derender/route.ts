@@ -71,6 +71,8 @@ export async function POST(req: Request) {
         const imageOutput = parts?.find(p => p.inlineData)?.inlineData;
 
         if (imageOutput) {
+            let sessionId: string | null = null;
+
             // Store both images in Cloud Storage and save URLs to Firestore
             try {
                 const timestamp = Date.now();
@@ -79,7 +81,7 @@ export async function POST(req: Request) {
                 // Helper function to upload base64 image to Cloud Storage
                 const uploadImage = async (base64Data: string, fileName: string, imageMimeType: string) => {
                     const buffer = Buffer.from(base64Data, 'base64');
-                    const file = bucket.file(`generations/${timestamp}/${fileName}`);
+                    const file = bucket.file(`sessions/${timestamp}/${fileName}`);
 
                     await file.save(buffer, {
                         metadata: {
@@ -100,23 +102,27 @@ export async function POST(req: Request) {
 
                 const processedImageUrl = await uploadImage(
                     imageOutput.data,
-                    'processed.jpg',
+                    'derendered.jpg',
                     imageOutput.mimeType
                 );
 
-                // Store metadata and URLs in Firestore
-                const generationDoc = {
-                    timestamp,
+                // Create a new session document to track the entire user journey
+                const sessionDoc = {
+                    createdAt: timestamp,
                     originalImageUrl,
                     originalMimeType: mimeType || "image/jpeg",
-                    processedImageUrl,
-                    processedMimeType: imageOutput.mimeType,
+                    derenderedImageUrl: processedImageUrl,
+                    derenderedMimeType: imageOutput.mimeType,
                     model: "gemini-3-pro-image-preview",
-                    prompt: prompt,
+                    derenderPrompt: prompt,
+                    foundationTryons: [], // Will be populated as user tries foundations
+                    status: 'active', // active, completed
+                    completedAt: null,
                 };
 
-                await db.collection('generations').add(generationDoc);
-                console.log('Successfully stored generation in Cloud Storage and Firestore');
+                const sessionRef = await db.collection('sessions').add(sessionDoc);
+                sessionId = sessionRef.id;
+                console.log('Successfully created session in Firestore:', sessionId);
             } catch (storageError) {
                 console.error('Error storing to Firebase:', storageError);
                 // Continue even if storage fails - don't block the user
@@ -124,7 +130,8 @@ export async function POST(req: Request) {
 
             return NextResponse.json({
                 image: imageOutput.data,
-                mimeType: imageOutput.mimeType
+                mimeType: imageOutput.mimeType,
+                sessionId: sessionId, // Return sessionId for frontend to use
             });
         }
 
