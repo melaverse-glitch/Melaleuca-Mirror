@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { Palette, Check, Loader2 } from "lucide-react";
+import { Palette, Check, Loader2, Sparkles } from "lucide-react";
 
 interface Foundation {
   sku: string;
@@ -16,12 +16,14 @@ interface FoundationSelectorProps {
   onSelect: (foundation: Foundation) => void;
   selectedSku: string | null;
   isApplying: boolean;
+  suggestedSkus?: string[];
 }
 
 export default function FoundationSelector({
   onSelect,
   selectedSku,
   isApplying,
+  suggestedSkus = [],
 }: FoundationSelectorProps) {
   const [foundations, setFoundations] = useState<Foundation[]>([]);
   const [filter, setFilter] = useState<"all" | "warm" | "neutral" | "cool">("all");
@@ -103,6 +105,7 @@ export default function FoundationSelector({
         {filteredFoundations.map((foundation) => {
           const isSelected = selectedSku === foundation.sku;
           const isCurrentlyApplying = isApplying && isSelected;
+          const isSuggested = suggestedSkus.includes(foundation.sku);
 
           return (
             <button
@@ -114,7 +117,7 @@ export default function FoundationSelector({
                   ? "ring-3 ring-brand-primary ring-offset-2 ring-offset-brand-dark scale-105"
                   : "hover:scale-105 hover:ring-2 hover:ring-white/30"
               } ${isApplying && !isSelected ? "opacity-50" : ""}`}
-              title={`${foundation.name} (${foundation.undertone})`}
+              title={`${foundation.name} (${foundation.undertone})${isSuggested ? " - AI Recommended" : ""}`}
             >
               <Image
                 src={foundation.swatchImage}
@@ -123,6 +126,13 @@ export default function FoundationSelector({
                 className="object-cover"
                 sizes="80px"
               />
+
+              {/* AI Suggestion indicator */}
+              {isSuggested && (
+                <div className="absolute top-1 left-1 z-10 p-1 bg-brand-primary rounded-full shadow-lg">
+                  <Sparkles className="w-3 h-3 text-brand-dark" />
+                </div>
+              )}
 
               {/* Selection indicator */}
               {isSelected && !isCurrentlyApplying && (

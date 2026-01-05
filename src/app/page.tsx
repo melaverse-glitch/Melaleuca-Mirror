@@ -27,6 +27,9 @@ export default function Home() {
   // Store the session ID to track the entire user journey
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  // Store AI-suggested foundation SKUs
+  const [suggestedFoundations, setSuggestedFoundations] = useState<string[]>([]);
+
   const handleImageSelected = async (file: File) => {
     // Convert to base64 for display
     const reader = new FileReader();
@@ -97,6 +100,7 @@ export default function Home() {
     setSelectedFoundation(null);
     setDerenderedBase64(null);
     setSessionId(null);
+    setSuggestedFoundations([]);
 
     try {
       // 1. Compress and convert file to base64 for API (prevents 413 errors)
@@ -126,6 +130,12 @@ export default function Home() {
         if (data.sessionId) {
           setSessionId(data.sessionId);
           console.log("Session created:", data.sessionId);
+        }
+
+        // Store AI-suggested foundations
+        if (data.suggestedFoundations && Array.isArray(data.suggestedFoundations)) {
+          setSuggestedFoundations(data.suggestedFoundations);
+          console.log("AI suggested foundations:", data.suggestedFoundations);
         }
 
         // Assume API returns base64 or URL
@@ -208,6 +218,7 @@ export default function Home() {
     setSelectedFoundation(null);
     setDerenderedBase64(null);
     setSessionId(null);
+    setSuggestedFoundations([]);
     setIsProcessing(false);
     setIsApplyingFoundation(false);
   };
@@ -242,6 +253,7 @@ export default function Home() {
             foundationImage={foundationImage}
             selectedFoundation={selectedFoundation}
             isApplyingFoundation={isApplyingFoundation}
+            suggestedFoundations={suggestedFoundations}
             onReset={handleReset}
             onFoundationSelect={handleFoundationSelect}
           />

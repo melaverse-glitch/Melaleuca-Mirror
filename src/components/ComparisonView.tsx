@@ -19,6 +19,7 @@ interface ComparisonViewProps {
     foundationImage: string | null;
     selectedFoundation: Foundation | null;
     isApplyingFoundation: boolean;
+    suggestedFoundations: string[];
     onReset: () => void;
     onFoundationSelect: (foundation: Foundation) => void;
 }
@@ -29,6 +30,7 @@ export default function ComparisonView({
     foundationImage,
     selectedFoundation,
     isApplyingFoundation,
+    suggestedFoundations,
     onReset,
     onFoundationSelect,
 }: ComparisonViewProps) {
@@ -220,6 +222,7 @@ export default function ComparisonView({
                         onSelect={onFoundationSelect}
                         selectedSku={selectedFoundation?.sku || null}
                         isApplying={isApplyingFoundation}
+                        suggestedSkus={suggestedFoundations}
                     />
                 </div>
             )}

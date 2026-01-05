@@ -130,10 +130,91 @@ export async function POST(req: Request) {
                 // Continue even if storage fails - don't block the user
             }
 
+            // Get AI foundation suggestions based on the derendered skin tone
+            let suggestedFoundations: string[] = [];
+            try {
+                const suggestionModel = genAI.getGenerativeModel({
+                    model: "gemini-2.0-flash",
+                });
+
+                const foundationsList = [
+                    { sku: "30W", name: "30 Warm", hex: "#e8c5a7", undertone: "warm" },
+                    { sku: "40N", name: "40 Neutral", hex: "#deba95", undertone: "neutral" },
+                    { sku: "50N", name: "50 Neutral", hex: "#d6b28f", undertone: "neutral" },
+                    { sku: "60C", name: "60 Cool", hex: "#d9a781", undertone: "cool" },
+                    { sku: "80N", name: "80 Neutral", hex: "#daa981", undertone: "neutral" },
+                    { sku: "100N", name: "100 Neutral", hex: "#e3b287", undertone: "neutral" },
+                    { sku: "110W", name: "110 Warm", hex: "#dfb382", undertone: "warm" },
+                    { sku: "120W", name: "120 Warm", hex: "#d9ae8b", undertone: "warm" },
+                    { sku: "180C", name: "180 Cool", hex: "#daab7d", undertone: "cool" },
+                    { sku: "220N", name: "220 Neutral", hex: "#d7a372", undertone: "neutral" },
+                    { sku: "240N", name: "240 Neutral", hex: "#c98d61", undertone: "neutral" },
+                    { sku: "280N", name: "280 Neutral", hex: "#d9ad7c", undertone: "neutral" },
+                    { sku: "325C", name: "325 Cool", hex: "#d7a77c", undertone: "cool" },
+                    { sku: "330W", name: "330 Warm", hex: "#d49353", undertone: "warm" },
+                    { sku: "340N", name: "340 Neutral", hex: "#e0b27f", undertone: "neutral" },
+                    { sku: "380N", name: "380 Neutral", hex: "#e5b481", undertone: "neutral" },
+                    { sku: "400N", name: "400 Neutral", hex: "#d4a074", undertone: "neutral" },
+                    { sku: "440W", name: "440 Warm", hex: "#ca8859", undertone: "warm" },
+                    { sku: "460N", name: "460 Neutral", hex: "#d8a472", undertone: "neutral" },
+                    { sku: "470W", name: "470 Warm", hex: "#bf804c", undertone: "warm" },
+                    { sku: "480C", name: "480 Cool", hex: "#d6976b", undertone: "cool" },
+                    { sku: "485N", name: "485 Neutral", hex: "#c47a40", undertone: "neutral" },
+                    { sku: "490N", name: "490 Neutral", hex: "#b8835b", undertone: "neutral" },
+                    { sku: "500W", name: "500 Warm", hex: "#b66d3d", undertone: "warm" },
+                    { sku: "540W", name: "540 Warm", hex: "#bc713d", undertone: "warm" },
+                    { sku: "550W", name: "550 Warm", hex: "#b3662a", undertone: "warm" },
+                    { sku: "555W", name: "555 Warm", hex: "#b76629", undertone: "warm" },
+                    { sku: "560N", name: "560 Neutral", hex: "#b47141", undertone: "neutral" },
+                    { sku: "600N", name: "600 Neutral", hex: "#b06733", undertone: "neutral" },
+                    { sku: "610W", name: "610 Warm", hex: "#9d5629", undertone: "warm" },
+                    { sku: "620C", name: "620 Cool", hex: "#995028", undertone: "cool" },
+                    { sku: "640W", name: "640 Warm", hex: "#965430", undertone: "warm" },
+                    { sku: "720N", name: "720 Neutral", hex: "#652f18", undertone: "neutral" },
+                ];
+
+                const suggestionPrompt = `Analyze this person's natural skin tone in the portrait and recommend exactly 3 foundation shades that would be the best match.
+
+Available foundations:
+${foundationsList.map(f => `- ${f.sku}: ${f.name} (${f.hex}, ${f.undertone} undertone)`).join('\n')}
+
+Consider:
+1. The person's skin depth (light to deep)
+2. Their undertone (warm, cool, or neutral)
+3. Match to face, neck, and visible skin areas
+
+Return ONLY a JSON array with exactly 3 SKU codes, ordered from best match to third best match.
+Example: ["110W", "120W", "100N"]
+
+Do not include any other text, just the JSON array.`;
+
+                const suggestionResult = await suggestionModel.generateContent([
+                    suggestionPrompt,
+                    {
+                        inlineData: {
+                            data: imageOutput.data,
+                            mimeType: imageOutput.mimeType,
+                        },
+                    },
+                ]);
+
+                const suggestionText = suggestionResult.response.text().trim();
+                // Parse the JSON array from the response
+                const parsed = JSON.parse(suggestionText);
+                if (Array.isArray(parsed) && parsed.length === 3) {
+                    suggestedFoundations = parsed;
+                    console.log('AI suggested foundations:', suggestedFoundations);
+                }
+            } catch (suggestionError) {
+                console.error('Error getting foundation suggestions:', suggestionError);
+                // Continue without suggestions - non-blocking
+            }
+
             return NextResponse.json({
                 image: imageOutput.data,
                 mimeType: imageOutput.mimeType,
-                sessionId: sessionId, // Return sessionId for frontend to use
+                sessionId: sessionId,
+                suggestedFoundations: suggestedFoundations,
             });
         }
 
