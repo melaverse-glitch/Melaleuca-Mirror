@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 IMPORTANT GUIDELINES:
 1. Apply the foundation ONLY to the face and neck areas - do not alter hair, eyes, lips, eyebrows, or background.
 2. The foundation should create a smooth, polished, professional makeup finish - like real foundation does.
-3. Preserve the person's facial features, expression, and identity completely.
+3. Strictly preserve the original facial identity, bone structure, and expression.
 4. Even out skin tone and create a smooth, refined complexion by softening pores, fine lines, and minor imperfections.
 5. The coverage should be medium to full - creating that polished makeup look with the foundation shade.
 6. Blend the foundation seamlessly at the jawline and hairline edges with no harsh lines.
