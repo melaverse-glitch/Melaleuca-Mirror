@@ -109,7 +109,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ image: base64, mimeType: file.type }),
+        body: JSON.stringify({ image: base64, mimeType: 'image/jpeg' }),
       });
 
       if (!response.ok) {
