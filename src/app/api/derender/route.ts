@@ -198,11 +198,30 @@ Do not include any other text, just the JSON array.`;
                     },
                 ]);
 
-                const suggestionText = suggestionResult.response.text().trim();
+                let suggestionText = suggestionResult.response.text().trim();
+                console.log('Raw AI suggestion response:', suggestionText);
+
+                // Strip markdown code blocks if present (e.g., ```json ... ```)
+                if (suggestionText.includes('```')) {
+                    suggestionText = suggestionText
+                        .replace(/```json\s*/gi, '')
+                        .replace(/```\s*/g, '')
+                        .trim();
+                }
+
+                // Extract JSON array if there's extra text
+                const jsonMatch = suggestionText.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    suggestionText = jsonMatch[0];
+                }
+
+                console.log('Cleaned suggestion text:', suggestionText);
+
                 // Parse the JSON array from the response
                 const parsed = JSON.parse(suggestionText);
-                if (Array.isArray(parsed) && parsed.length === 3) {
-                    suggestedFoundations = parsed;
+                if (Array.isArray(parsed) && parsed.length >= 1) {
+                    // Take up to 3 suggestions
+                    suggestedFoundations = parsed.slice(0, 3);
                     console.log('AI suggested foundations:', suggestedFoundations);
                 }
             } catch (suggestionError) {
