@@ -134,7 +134,7 @@ export async function POST(req: Request) {
             let suggestedFoundations: string[] = [];
             try {
                 const suggestionModel = genAI.getGenerativeModel({
-                    model: "gemini-2.0-flash",
+                    model: "gemini-3-flash-preview",
                 });
 
                 const foundationsList = [
