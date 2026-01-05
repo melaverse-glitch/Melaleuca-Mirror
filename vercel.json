@@ -1,12 +1,10 @@
 {
   "functions": {
     "src/app/api/derender/route.ts": {
-      "maxDuration": 60,
-      "memory": 3008
+      "maxDuration": 60
     },
     "src/app/api/apply-foundation/route.ts": {
-      "maxDuration": 60,
-      "memory": 3008
+      "maxDuration": 60
     }
   }
 }
