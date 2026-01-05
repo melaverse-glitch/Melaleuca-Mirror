@@ -40,6 +40,11 @@ export default function ComparisonView({
     const rightLabel = foundationImage && showFoundation ? selectedFoundation?.name || "With Foundation" : "Clean Canvas";
     const isFoundationView = foundationImage && showFoundation;
 
+    // Use white text for darker foundations (500 and above)
+    const needsLightText = selectedFoundation?.sku
+        ? parseInt(selectedFoundation.sku.replace(/\D/g, '')) >= 500
+        : false;
+
     const handleDownload = () => {
         const imageToDownload = rightImage;
         if (imageToDownload) {
@@ -117,7 +122,7 @@ export default function ComparisonView({
                     <div
                         className={`absolute top-6 left-6 z-10 px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 ${
                             isFoundationView
-                                ? "text-brand-dark"
+                                ? needsLightText ? "text-white" : "text-brand-dark"
                                 : "bg-brand-primary/90 text-brand-dark"
                         }`}
                         style={isFoundationView && selectedFoundation ? { backgroundColor: selectedFoundation.hex } : undefined}
