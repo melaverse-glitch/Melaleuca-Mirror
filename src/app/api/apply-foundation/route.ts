@@ -58,12 +58,12 @@ export async function POST(req: Request) {
 
 IMPORTANT GUIDELINES:
 1. Apply the foundation ONLY to the face and neck areas - do not alter hair, eyes, lips, eyebrows, or background.
-2. The foundation should look natural and blended, not like a mask or filter.
+2. The foundation should create a smooth, polished, professional makeup finish - like real foundation does.
 3. Preserve the person's facial features, expression, and identity completely.
-4. Match the foundation application to how real foundation looks - slightly evening out skin tone while maintaining natural skin texture.
-5. The coverage should be medium - enough to see the color but not completely opaque.
-6. Blend the foundation naturally at the jawline and hairline edges.
-7. Maintain realistic skin texture and pores - do not make the skin look plastic or airbrushed.`
+4. Even out skin tone and create a smooth, refined complexion by softening pores, fine lines, and minor imperfections.
+5. The coverage should be medium to full - creating that polished makeup look with the foundation shade.
+6. Blend the foundation seamlessly at the jawline and hairline edges with no harsh lines.
+7. The result should look like professionally applied makeup - smooth and polished but still realistic, NOT plastic or heavily airbrushed.`
         });
 
         // Build the prompt with foundation details
@@ -72,7 +72,7 @@ IMPORTANT GUIDELINES:
 - Color: ${foundation.hex}
 - Undertone: ${foundation.undertone}
 
-Apply a natural, medium-coverage foundation look. The result should look like the person is wearing this foundation shade - evening out skin tone while keeping natural texture. Blend naturally at edges.`;
+Create a smooth, polished foundation finish that looks like professional makeup application. The skin should appear even-toned and refined with the foundation color, with a natural but polished appearance. Blend seamlessly at all edges.`;
 
         // Construct the content parts
         const contentParts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }> = [
