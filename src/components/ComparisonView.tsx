@@ -117,9 +117,10 @@ export default function ComparisonView({
                     <div
                         className={`absolute top-6 left-6 z-10 px-6 py-2 rounded-full font-bold shadow-lg flex items-center gap-2 ${
                             isFoundationView
-                                ? "bg-brand-secondary/90 text-brand-dark"
+                                ? "text-brand-dark"
                                 : "bg-brand-primary/90 text-brand-dark"
                         }`}
+                        style={isFoundationView && selectedFoundation ? { backgroundColor: selectedFoundation.hex } : undefined}
                     >
                         {isFoundationView ? (
                             <>
