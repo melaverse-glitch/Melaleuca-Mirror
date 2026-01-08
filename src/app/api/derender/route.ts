@@ -72,10 +72,15 @@ export async function POST(req: Request) {
 
         if (imageOutput) {
             let sessionId: string | null = null;
+            let firestoreSynced = false;
+            let originalImageUrl: string | null = null;
+            let processedImageUrl: string | null = null;
 
-            // Store both images in Cloud Storage and save URLs to Firestore
+            const timestamp = Date.now();
+            sessionId = timestamp.toString();
+
+            // Step 1: Upload images to Cloud Storage
             try {
-                const timestamp = Date.now();
                 const bucket = storage.bucket('melaleuca-mirror.firebasestorage.app');
 
                 // Helper function to upload base64 image to Cloud Storage
@@ -94,22 +99,26 @@ export async function POST(req: Request) {
                 };
 
                 // Upload both images
-                const originalImageUrl = await uploadImage(
+                originalImageUrl = await uploadImage(
                     image,
                     'original.jpg',
                     mimeType || "image/jpeg"
                 );
 
-                const processedImageUrl = await uploadImage(
+                processedImageUrl = await uploadImage(
                     imageOutput.data,
                     'derendered.jpg',
                     imageOutput.mimeType
                 );
 
-                // Create a new session document using timestamp as ID for consistency
-                // This ensures Cloud Storage folder and Firestore doc ID match
-                sessionId = timestamp.toString();
+                console.log(`Successfully uploaded images for session: ${sessionId}`);
+            } catch (storageError) {
+                console.error(`Error uploading to Cloud Storage for session ${sessionId}:`, storageError);
+                // Continue - user still gets their image even if storage fails
+            }
 
+            // Step 2: Create Firestore document (with retry logic)
+            if (originalImageUrl && processedImageUrl) {
                 const sessionDoc = {
                     createdAt: timestamp,
                     originalImageUrl,
@@ -123,11 +132,26 @@ export async function POST(req: Request) {
                     completedAt: null,
                 };
 
-                await db.collection('sessions').doc(sessionId).set(sessionDoc);
-                console.log('Successfully created session in Firestore:', sessionId);
-            } catch (storageError) {
-                console.error('Error storing to Firebase:', storageError);
-                // Continue even if storage fails - don't block the user
+                // Retry Firestore write up to 3 times
+                const maxRetries = 3;
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        await db.collection('sessions').doc(sessionId).set(sessionDoc);
+                        firestoreSynced = true;
+                        console.log(`Successfully created Firestore document for session: ${sessionId}`);
+                        break;
+                    } catch (firestoreError) {
+                        console.error(`Firestore write attempt ${attempt}/${maxRetries} failed for session ${sessionId}:`, firestoreError);
+                        if (attempt < maxRetries) {
+                            // Wait before retry (exponential backoff: 100ms, 200ms, 400ms)
+                            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)));
+                        } else {
+                            console.error(`All Firestore write attempts failed for session ${sessionId}. Session exists in Storage but NOT in Firestore.`);
+                        }
+                    }
+                }
+            } else {
+                console.warn(`Skipping Firestore write for session ${sessionId} - Storage upload failed`);
             }
 
             // Get AI foundation suggestions based on the derendered skin tone
@@ -234,6 +258,7 @@ Do not include any other text, just the JSON array.`;
                 mimeType: imageOutput.mimeType,
                 sessionId: sessionId,
                 suggestedFoundations: suggestedFoundations,
+                firestoreSynced: firestoreSynced,
             });
         }
 
